@@ -9,7 +9,7 @@ import { FirecrawlService } from '@/utils/FirecrawlService';
 
 export function ApiKeyManager() {
   const { toast } = useToast();
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState('fc-21d02dbdd507435fb0629201da9b54d4');
   const [isStored, setIsStored] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
