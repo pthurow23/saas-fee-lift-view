@@ -1,126 +1,247 @@
+import { useState, useEffect } from "react"
 import { Header } from "@/components/header"
-import { FacilityCard } from "@/components/facility-card"
+import { GlacierLiftCard } from "@/components/glacier-lift-card"
+import { ApiKeyManager } from "@/components/api-key-manager"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 import { 
-  Cable, 
-  Utensils, 
-  Footprints, 
-  Bike, 
   Mountain, 
-  Gamepad2,
+  RefreshCw,
   Clock,
-  MapPin
+  MapPin,
+  AlertTriangle,
+  CheckCircle
 } from "lucide-react"
-
-const facilityData = [
-  {
-    title: "Cable cars and Lifts",
-    open: 10,
-    total: 19,
-    icon: <Cable />,
-    description: "Main transportation to the slopes"
-  },
-  {
-    title: "Mountain restaurants", 
-    open: 16,
-    total: 21,
-    icon: <Utensils />,
-    description: "Dining options across the mountain"
-  },
-  {
-    title: "Hiking trails",
-    open: 54,
-    total: 74,
-    icon: <Footprints />,
-    description: "Walking and hiking paths"
-  },
-  {
-    title: "Bike trails",
-    open: 17,
-    total: 21,
-    icon: <Bike />,
-    description: "Mountain biking routes"
-  },
-  {
-    title: "Via ferrata",
-    open: 3,
-    total: 6,
-    icon: <Mountain />,
-    description: "Climbing routes with fixed anchors"
-  },
-  {
-    title: "Leisure facilities",
-    open: 14,
-    total: 17,
-    icon: <Gamepad2 />,
-    description: "Entertainment and activity centers"
-  }
-]
+import { LiftStatusService, GlacierAccessData } from "@/utils/lift-status-service"
+import { FirecrawlService } from "@/utils/FirecrawlService"
+import { cn } from "@/lib/utils"
 
 const Index = () => {
-  const totalOpen = facilityData.reduce((sum, facility) => sum + facility.open, 0)
-  const totalFacilities = facilityData.reduce((sum, facility) => sum + facility.total, 0)
-  const overallPercentage = Math.round((totalOpen / totalFacilities) * 100)
+  const { toast } = useToast()
+  const [glacierData, setGlacierData] = useState<GlacierAccessData | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasApiKey, setHasApiKey] = useState(false)
+
+  useEffect(() => {
+    const apiKey = FirecrawlService.getApiKey()
+    setHasApiKey(!!apiKey)
+    
+    if (apiKey) {
+      fetchLiftStatus()
+    }
+  }, [])
+
+  const fetchLiftStatus = async () => {
+    if (!FirecrawlService.getApiKey()) {
+      toast({
+        title: "API Key Required",
+        description: "Please configure your Firecrawl API key first",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const data = await LiftStatusService.getGlacierAccessStatus()
+      setGlacierData(data)
+      
+      toast({
+        title: "Status Updated",
+        description: `Last checked: ${new Date(data.lastCheck).toLocaleTimeString()}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch lift status",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const getGlacierAccessStatus = () => {
+    if (!glacierData) return { status: 'unknown', message: 'No data available' }
+    
+    if (glacierData.glacierSkiingOpen) {
+      return { 
+        status: 'open', 
+        message: 'Glacier skiing accessible' 
+      }
+    } else {
+      return { 
+        status: 'closed', 
+        message: 'Glacier skiing not accessible' 
+      }
+    }
+  }
+
+  const accessStatus = getGlacierAccessStatus()
 
   return (
     <div className="min-h-screen bg-gradient-snow">
       <Header />
       
       <div className="container mx-auto px-4 py-8">
-        {/* Overview Stats */}
+        {/* API Key Setup */}
+        {!hasApiKey && (
+          <div className="mb-8">
+            <ApiKeyManager />
+          </div>
+        )}
+
+        {/* Glacier Access Overview */}
         <div className="mb-8">
-          <Card className="bg-gradient-alpine text-white border-0 shadow-alpine">
+          <Card className={cn(
+            "border-0 shadow-alpine",
+            accessStatus.status === 'open' ? "bg-gradient-mountain text-white" :
+            accessStatus.status === 'closed' ? "bg-gradient-to-r from-destructive to-destructive/80 text-white" :
+            "bg-gradient-alpine text-white"
+          )}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-white">
-                <MapPin className="w-5 h-5" />
-                Overall Status
+                <Mountain className="w-5 h-5" />
+                Glacier Skiing Access Status
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold mb-2">
-                    {totalOpen} of {totalFacilities} facilities open
+                  <div className="text-3xl font-bold mb-2 flex items-center gap-3">
+                    {accessStatus.status === 'open' ? (
+                      <>
+                        <CheckCircle className="w-8 h-8" />
+                        Glacier Open
+                      </>
+                    ) : accessStatus.status === 'closed' ? (
+                      <>
+                        <AlertTriangle className="w-8 h-8" />
+                        Glacier Closed
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-8 h-8" />
+                        Status Unknown
+                      </>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-4">
                     <Badge className="bg-white/20 text-white border-white/30">
-                      {overallPercentage}% operational
+                      {accessStatus.message}
                     </Badge>
-                    <div className="flex items-center gap-1 text-white/80">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm">Updated: Today 08:30</span>
-                    </div>
+                    {glacierData && (
+                      <div className="flex items-center gap-2 text-white/80">
+                        <Clock className="w-4 h-4" />
+                        <span className="text-sm">
+                          Updated: {new Date(glacierData.lastCheck).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="text-6xl font-bold opacity-20">
-                  {overallPercentage}%
+                
+                <div className="text-right">
+                  <Button 
+                    onClick={fetchLiftStatus}
+                    disabled={isLoading || !hasApiKey}
+                    variant="outline"
+                    className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                  >
+                    <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+                    {isLoading ? "Checking..." : "Refresh Status"}
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Facility Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {facilityData.map((facility, index) => (
-            <FacilityCard
-              key={index}
-              title={facility.title}
-              open={facility.open}
-              total={facility.total}
-              icon={facility.icon}
-              description={facility.description}
-            />
-          ))}
+        {/* Key Glacier Access Lifts */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <MapPin className="w-6 h-6 text-primary" />
+            Glacier Access Lifts
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            These three lifts provide the only access to the glacier for ski training. 
+            You need either the Metro Alpin running, or both Alpin Express lifts operational.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {glacierData?.lifts.map((lift, index) => (
+              <GlacierLiftCard
+                key={index}
+                lift={lift}
+              />
+            )) || (
+              // Placeholder cards when no data
+              ['Alpin Express I', 'Alpin Express II', 'Metro Alpin'].map((name) => (
+                <GlacierLiftCard
+                  key={name}
+                  lift={{
+                    name,
+                    isOpen: false,
+                    status: 'unknown',
+                    lastUpdated: new Date().toISOString()
+                  }}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Access Information */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Card className="bg-gradient-snow border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg">Direct Glacier Access</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Metro Alpin</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Underground funicular direct to 3,500m
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  The world's highest underground funicular railway. When operational, 
+                  provides direct access to the glacier skiing area.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-snow border-border/50">
+            <CardHeader>
+              <CardTitle className="text-lg">Alternative Route</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Alpin Express I + II</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Two-stage cable car system
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  When both sections are running, you can reach the mid-station 
+                  and connect to other lifts for glacier access.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Footer Info */}
-        <div className="mt-12 text-center">
+        <div className="text-center">
           <Card className="bg-muted/30 border-border/50">
             <CardContent className="p-6">
               <p className="text-muted-foreground">
-                Data sourced from{" "}
+                Real-time data sourced from{" "}
                 <a 
                   href="https://www.saas-fee.ch/en/open-lifts/all" 
                   target="_blank" 
@@ -129,7 +250,16 @@ const Index = () => {
                 >
                   saas-fee.ch
                 </a>
-                {" "}• Last updated today at 08:30
+                {glacierData && (
+                  <>
+                    {" "}• Last updated: {new Date(glacierData.lastCheck).toLocaleString()}
+                    {glacierData.weatherConditions && (
+                      <>
+                        {" "}• {glacierData.weatherConditions.temperature}, {glacierData.weatherConditions.conditions}
+                      </>
+                    )}
+                  </>
+                )}
               </p>
             </CardContent>
           </Card>
