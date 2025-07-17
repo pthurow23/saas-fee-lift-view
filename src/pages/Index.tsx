@@ -34,32 +34,41 @@ const Index = () => {
   }, [])
 
   const fetchLiftStatus = async () => {
-    if (!FirecrawlService.getApiKey()) {
+    const currentApiKey = FirecrawlService.getApiKey();
+    console.log('Fetching lift status. API key present:', !!currentApiKey);
+    
+    if (!currentApiKey) {
+      console.error('No API key found');
       toast({
         title: "API Key Required",
         description: "Please configure your Firecrawl API key first",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
+    console.log('Starting lift status fetch...');
+    
     try {
-      const data = await LiftStatusService.getGlacierAccessStatus()
-      setGlacierData(data)
+      const data = await LiftStatusService.getGlacierAccessStatus();
+      console.log('Lift status data received:', data);
+      setGlacierData(data);
       
       toast({
         title: "Status Updated",
         description: `Last checked: ${new Date(data.lastCheck).toLocaleTimeString()}`,
-      })
+      });
     } catch (error) {
+      console.error('Error fetching lift status:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch lift status",
+        description: "Failed to fetch lift status: " + (error as Error).message,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
+      console.log('Lift status fetch completed');
     }
   }
 

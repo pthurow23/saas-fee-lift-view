@@ -32,19 +32,24 @@ export function ApiKeyManager() {
       return;
     }
 
+    console.log('Attempting to save API key:', apiKey.substring(0, 8) + '...');
     setIsTesting(true);
     
     try {
+      console.log('Testing API key validity...');
       const isValid = await FirecrawlService.testApiKey(apiKey);
+      console.log('API key test result:', isValid);
       
       if (isValid) {
         FirecrawlService.saveApiKey(apiKey);
         setIsStored(true);
+        console.log('API key saved successfully');
         toast({
           title: "Success",
           description: "API key saved and verified successfully",
         });
       } else {
+        console.error('API key validation failed');
         toast({
           title: "Error", 
           description: "Invalid API key. Please check and try again.",
@@ -52,9 +57,10 @@ export function ApiKeyManager() {
         });
       }
     } catch (error) {
+      console.error('Error during API key verification:', error);
       toast({
         title: "Error",
-        description: "Failed to verify API key",
+        description: "Failed to verify API key: " + (error as Error).message,
         variant: "destructive",
       });
     } finally {

@@ -22,28 +22,38 @@ export class LiftStatusService {
   
   static async getGlacierAccessStatus(): Promise<GlacierAccessData> {
     try {
-      console.log('Fetching real-time lift status from Saas-Fee...');
+      console.log('LiftStatusService: Starting glacier access status fetch...');
+      console.log('LiftStatusService: Target URL:', this.SAAS_FEE_LIFTS_URL);
       
       const scrapeResult = await FirecrawlService.scrapeWebsite(this.SAAS_FEE_LIFTS_URL);
+      console.log('LiftStatusService: Scrape result:', scrapeResult);
       
       if (!scrapeResult.success) {
+        console.error('LiftStatusService: Scrape failed:', scrapeResult.error);
         throw new Error(scrapeResult.error || 'Failed to fetch lift data');
       }
 
+      console.log('LiftStatusService: Parsing lift data...');
       const lifts = this.parseLiftData(scrapeResult.data);
-      const glacierSkiingOpen = this.determineGlacierAccess(lifts);
+      console.log('LiftStatusService: Parsed lifts:', lifts);
       
-      return {
+      const glacierSkiingOpen = this.determineGlacierAccess(lifts);
+      console.log('LiftStatusService: Glacier skiing open:', glacierSkiingOpen);
+      
+      const result = {
         lifts,
         glacierSkiingOpen,
         lastCheck: new Date().toISOString(),
         weatherConditions: this.extractWeatherInfo(scrapeResult.data)
       };
       
-    } catch (error) {
-      console.error('Error fetching lift status:', error);
+      console.log('LiftStatusService: Final result:', result);
+      return result;
       
-      // Return fallback data
+    } catch (error) {
+      console.error('LiftStatusService: Error in getGlacierAccessStatus:', error);
+      
+      // Return fallback data with error info
       return {
         lifts: [
           { name: 'Alpin Express I', isOpen: false, status: 'unknown', lastUpdated: new Date().toISOString() },
